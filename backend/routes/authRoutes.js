@@ -93,15 +93,15 @@ router.post("/verify-otp", wrapAsync(async (req, res) => {
         await pool.query("BEGIN");
 
         await pool.query(
-            `INSERT INTO students (enrolment_no, full_name, semester, programme, department, phone_no, is_verified) 
-             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-            [pendingUser.enrolment_no, pendingUser.full_name, pendingUser.semester, pendingUser.programme, pendingUser.department, pendingUser.phone_no,true]
+            `INSERT INTO students (enrolment_no, full_name, semester, programme, department, phone_no) 
+             VALUES ($1, $2, $3, $4, $5, $6)`,
+            [pendingUser.enrolment_no, pendingUser.full_name, pendingUser.semester, pendingUser.programme, pendingUser.department, pendingUser.phone_no]
         );
 
         const newUserResult = await pool.query(
-            `INSERT INTO users (email, password_hash, enrolment_no, role) 
-             VALUES ($1, $2, $3, $4) RETURNING user_id`,
-            [pendingUser.email, pendingUser.password_hash, pendingUser.enrolment_no, pendingUser.role]
+            `INSERT INTO users (email, password_hash, enrolment_no, role,is_verified) 
+             VALUES ($1, $2, $3, $4, $5) RETURNING user_id`,
+            [pendingUser.email, pendingUser.password_hash, pendingUser.enrolment_no, pendingUser.role,true]
         );
         newUserId = newUserResult.rows[0].user_id;
 
