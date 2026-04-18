@@ -36,6 +36,42 @@ const sendVerificationEmail = async (email, otp) => {
     }
 };
 
+const sendPasswordResetEmail = async (email, resetUrl) => {
+    try {
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: process.env.GMAIL_USER, 
+                pass: process.env.GMAIL_APP_PASSWORD 
+            }
+        });
+
+        const mailOptions = {
+            from: `"Ink2Data Portal" <${process.env.GMAIL_USER}>`,
+            to: email,
+            subject: "Password Reset Request - Ink2Data",
+            html: `
+                <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee; max-width: 500px; margin: 0 auto; border-radius: 8px;">
+                    <h2 style="color: #333;">Password Reset Request</h2>
+                    <p style="color: #555; font-size: 16px;">We received a request to reset your password. Click the button below to create a new one:</p>
+                    <div style="text-align: center; margin: 30px 0;">
+                        <a href="${resetUrl}" style="background-color: #0d6efd; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Reset Password</a>
+                    </div>
+                    <p style="color: #888; font-size: 14px;">This link will expire in 15 minutes.</p>
+                </div>
+            `
+        };
+
+        await transporter.sendMail(mailOptions);
+        console.log(`📧 Password Reset Email sent to ${email}`);
+
+    } catch (error) {
+        console.error("🚨 Nodemailer Error (Reset):", error);
+        throw new Error("Failed to send reset email.");
+    }
+};
+
 module.exports = {
-    sendVerificationEmail
+    sendVerificationEmail,
+    sendPasswordResetEmail 
 };

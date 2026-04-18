@@ -6,16 +6,19 @@ import LoginPage from "./components/LoginPage";
 import ProtectedRoute from "./content/ProtectedRoute";
 import VerifyOTPPage from "./components/VerifyOTPPage";
 import Dashboard from "./components/Dashboard";
+import Typewriter from "./components/Typewriter";
+import ForgotPassword from './components/ForgotPassword';
+
 
 function App() {
   return (
     <AuthProvider>
       <Routes>
-        {/* Public Routes */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/verify-otp" element={<VerifyOTPPage />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>}/>
                
         <Route path="*" element={<Navigate to="/" />} />

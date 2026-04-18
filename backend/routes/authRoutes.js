@@ -4,9 +4,10 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const pool = require('../config/db'); 
 const {sendVerificationEmail}  = require('../utils/email.js');
+const { sendPasswordResetEmail } = require("../utils/email.js");
 const wrapAsync = require("../utils/wrapAsync");
 const ExpressError = require("../utils/ExpressError");
-
+const crypto = require("crypto");
 
 router.post("/register", wrapAsync(async (req, res) => {
     const { 
@@ -184,6 +185,95 @@ router.post("/logout", (req, res) => {
         success: true, 
         message: "Logged out successfully from server." 
     });
+});
+
+router.post("/forgot-password", async (req, res) => {
+    const { email } = req.body;
+    try {
+        const userQuery = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
+        if (userQuery.rows.length === 0) {
+            return res.json({ success: true, message: "If that email exists, an OTP has been sent." });
+        }
+        
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const hashedOtp = crypto.createHash("sha256").update(otp).digest("hex");
+        const tokenExpires = Date.now() + 15 * 60 * 1000;
+
+        await pool.query(
+            "UPDATE users SET reset_password_token = $1, reset_password_expires = $2 WHERE email = $3",
+            [hashedOtp, tokenExpires, email]
+        );
+
+        await sendVerificationEmail(email, otp);
+        
+        res.json({ success: true, message: "OTP sent successfully." });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, error: "Server error." });
+    }
+});
+
+router.post("/verify-reset-otp", async (req, res) => {
+    const { email, otp } = req.body;
+
+    try {
+        const hashedOtp = crypto.createHash("sha256").update(otp).digest("hex");
+        
+        const userQuery = await pool.query(
+            "SELECT * FROM users WHERE email = $1 AND reset_password_token = $2 AND reset_password_expires > $3",
+            [email, hashedOtp, Date.now()]
+        );
+
+        if (userQuery.rows.length === 0) {
+            return res.status(400).json({ success: false, error: "Invalid or expired OTP." });
+        }
+
+        
+        const resetToken = crypto.randomBytes(32).toString("hex");
+        const hashedResetToken = crypto.createHash("sha256").update(resetToken).digest("hex");
+        const newExpires = Date.now() + 15 * 60 * 1000;
+
+        await pool.query(
+            "UPDATE users SET reset_password_token = $1, reset_password_expires = $2 WHERE email = $3",
+            [hashedResetToken, newExpires, email]
+        );
+
+        res.json({ success: true, resetToken: resetToken });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, error: "Server error." });
+    }
+});
+
+router.post("/reset-password/:token", async (req, res) => {
+    const { token } = req.params;
+    const { newPassword } = req.body;
+
+    try {
+        const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+        
+        const userQuery = await pool.query(
+            "SELECT * FROM users WHERE reset_password_token = $1 AND reset_password_expires > $2",
+            [hashedToken, Date.now()]
+        );
+
+        if (userQuery.rows.length === 0) {
+            return res.status(400).json({ success: false, error: "Token is invalid or expired." });
+        }
+
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+        await pool.query(
+            "UPDATE users SET password_hash = $1, reset_password_token = NULL, reset_password_expires = NULL WHERE email = $2",
+            [hashedPassword, userQuery.rows[0].email]
+        );
+
+        res.json({ success: true, message: "Password reset successfully!" });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, error: "Server error." });
+    }
 });
 
 module.exports = router;

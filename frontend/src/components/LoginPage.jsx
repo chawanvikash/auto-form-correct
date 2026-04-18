@@ -90,7 +90,7 @@ const LoginPage = () => {
                         <Lock size={16} className="me-2" /> Password
                       </Form.Label>
                       {/* Placeholder for future Forgot Password feature */}
-                      <a href="#" className="text-decoration-none small text-muted hover-primary">Forgot?</a>
+                       <Link to ='/forgot-password' className="text-decoration-none small text-muted hover-primary">Forgot Password</Link>
                     </div>
                     <Form.Control 
                       type="password" 

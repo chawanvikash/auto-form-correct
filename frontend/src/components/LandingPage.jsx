@@ -4,6 +4,7 @@ import { Container, Button } from 'react-bootstrap';
 import { ArrowRight, UserPlus } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 import logoImage from '../assets/logo.png'; 
+import Typewriter from './Typewriter';
 
 const LandingPage = () => {
   const { isAuthenticated } = useContext(AuthContext);
@@ -73,9 +74,16 @@ const LandingPage = () => {
             />
           </div>
           
-          <p className="lead text-secondary mb-5 px-md-5 fw-medium" style={{ fontSize: '1.2rem', lineHeight: '1.6' }}>
-            The official IIEST Semester Registration AI Evaluator. Instantly cross-check your handwritten registration forms against the official curriculum.
-          </p>
+          <p 
+  className="lead text-secondary mb-5 px-md-5 fw-medium" 
+  style={{ fontSize: '1.2rem', lineHeight: '1.6', minHeight: '3em' }}
+>
+  <Typewriter 
+    text="The official IIEST Semester Registration AI Evaluator. Instantly cross-check your handwritten registration forms against the official curriculum." 
+    typingSpeed={35}     // Faster = lower number (milliseconds per character)
+    pauseDuration={4000} // How long it waits before restarting (4 seconds)
+  />
+</p>
 
           {!isAuthenticated ? (
             <div className="d-flex gap-3 justify-content-center flex-wrap">
@@ -90,7 +98,7 @@ const LandingPage = () => {
               <Button 
                 variant="outline-secondary" 
                 size="lg" 
-                className="fw-bold px-4 py-3 rounded-pill d-flex align-items-center bg-white transition-all"
+                className="fw-bold px-4 py-3 rounded-pill d-flex align-items-center transition-all"
                 onClick={() => navigate('/register')}
               >
                 <UserPlus className="me-2" size={20} /> Create Account
