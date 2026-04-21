@@ -261,12 +261,12 @@ const LoginPage = () => {
                       </div>
 
                       <p className="reg-panel-tagline">
-                        Welcome back to your unified academic workspace. All your notes, schedules, and resources in one place.
+                        Welcome back to your unified academic workspace.
                       </p>
 
                       <ul className="reg-feature-list">
                         {[
-                          { icon: <BookOpen size={14} color="#93c5fd" />, title: 'Smart Notes',    desc: 'Convert handwritten notes to searchable digital text' },
+                          { icon: <BookOpen size={14} color="#93c5fd" />, title: 'Smart Submit',    desc: 'Convert handwritten regisration forms into digital document.' },
                           { icon: <Shield   size={14} color="#86efac" />, title: 'Secure Access',  desc: 'G-Suite verified login for IIEST students only' },
                           { icon: <User     size={14} color="#fcd34d" />, title: 'Personal Dashboard',desc: 'Track your courses, tasks and progress easily' },
                         ].map((f) => (

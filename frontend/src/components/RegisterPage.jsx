@@ -381,12 +381,12 @@ const RegisterPage = () => {
                       </div>
 
                       <p className="reg-panel-tagline">
-                        Your unified academic workspace — notes, schedules, and resources, all in one place.
+                        Your unified academic workspace.
                       </p>
 
                       <ul className="reg-feature-list">
                         {[
-                          { icon: <BookOpen size={14} color="#93c5fd" />, title: 'Smart Notes',       desc: 'Convert handwritten notes to searchable digital text' },
+                          { icon: <BookOpen size={14} color="#93c5fd" />, title: 'Smart Submit',       desc: 'Convert handwritten registration forms into digital documents' },
                           { icon: <Shield   size={14} color="#86efac" />, title: 'Secure Access',     desc: 'G-Suite verified login for IIEST students only' },
                           { icon: <User     size={14} color="#fcd34d" />, title: 'Personal Dashboard',desc: 'Track your courses, tasks and progress easily' },
                         ].map((f) => (
