@@ -325,25 +325,38 @@ const RegisterPage = () => {
   const url = BASE_URL;
 
   const [formData, setFormData] = useState({
-    full_name: '', phone_no: '', enrolment_no: '',
+    full_name: '', phone_no: '', identifier: '',
     programme: 'B.Tech', department: 'Computer Science and Technology',
     semester: '', email: '', password: '', role: 'student',
   });
 
   const handleChange = (e) => { setFormData({ ...formData, [e.target.name]: e.target.value }); setError(''); };
+  
   const nextStep = () => {
-    if (step === 1 && (!formData.full_name || !formData.phone_no || !formData.enrolment_no))
+    // Step 1 Validation
+    if (step === 1 && (!formData.full_name || !formData.phone_no || !formData.identifier || !formData.role)) {
       return setError('Please fill in all Personal details.');
-    if (step === 2 && (!formData.semester || !formData.programme || !formData.department))
-      return setError('Please fill in all Academic details.');
+    }
+    // Step 2 Validation (Dynamic based on role)
+    if (step === 2) {
+        if (formData.role === 'student' && (!formData.semester || !formData.programme || !formData.department)) {
+            return setError('Please fill in all Academic details.');
+        }
+        if (formData.role !== 'student' && !formData.department) {
+            return setError('Please select your department.');
+        }
+    }
     setError(''); setStep((p) => p + 1);
   };
+  
   const prevStep = () => { setError(''); setStep((p) => p - 1); };
+  
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.email || !formData.password || formData.password.length < 6)
       return setError('Please provide a valid email and a password of at least 6 characters.');
     setError(''); setIsLoading(true);
+    
     try {
       await axios.post(url + '/api/auth/register', formData);
       navigate('/verify-otp', { state: { email: formData.email } });
@@ -355,7 +368,7 @@ const RegisterPage = () => {
   const stepTitles    = ['Personal Identity', 'Academic Profile', 'Account Security'];
   const stepSubtitles = [
     'Tell us who you are so we can set up your profile.',
-    'Your programme and department details for your account.',
+    'Your academic classification for your account.',
     'Set your login credentials to secure your account.',
   ];
 
@@ -386,7 +399,7 @@ const RegisterPage = () => {
 
                       <ul className="reg-feature-list">
                         {[
-                          { icon: <BookOpen size={14} color="#93c5fd" />, title: 'Smart Submit',       desc: 'Convert handwritten registration forms into digital documents' },
+                          { icon: <BookOpen size={14} color="#93c5fd" />, title: 'Smart Submit',      desc: 'Convert handwritten registration forms into digital documents' },
                           { icon: <Shield   size={14} color="#86efac" />, title: 'Secure Access',     desc: 'G-Suite verified login for IIEST students only' },
                           { icon: <User     size={14} color="#fcd34d" />, title: 'Personal Dashboard',desc: 'Track your courses, tasks and progress easily' },
                         ].map((f) => (
@@ -431,17 +444,37 @@ const RegisterPage = () => {
                             <h5><span className="reg-head-icon"><User size={15} /></span>Personal Identity</h5>
                             <p>{stepSubtitles[0]}</p>
                           </div>
-                          <Form.Group className="mb-3">
-                            <Form.Label className="reg-label">Full Name</Form.Label>
-                            <Form.Control className="reg-control" type="text" name="full_name"
-                              value={formData.full_name} placeholder="e.g. Chawan Vikas" onChange={handleChange} />
-                          </Form.Group>
+                          
                           <Row>
                             <Col sm={6}>
                               <Form.Group className="mb-3">
-                                <Form.Label className="reg-label">Enrolment No.</Form.Label>
-                                <Form.Control className="reg-control" type="text" name="enrolment_no"
-                                  value={formData.enrolment_no} placeholder="2024CS001" onChange={handleChange} />
+                                <Form.Label className="reg-label">Account Role</Form.Label>
+                                <Form.Select className="reg-control" name="role" value={formData.role} onChange={handleChange}>
+                                  <option value="student">Student</option>
+                                  <option value="faculty">Faculty</option>
+                                  <option value="admin">Administrator</option>
+                                </Form.Select>
+                              </Form.Group>
+                            </Col>
+                            <Col sm={6}>
+                              <Form.Group className="mb-3">
+                                <Form.Label className="reg-label">Full Name</Form.Label>
+                                <Form.Control className="reg-control" type="text" name="full_name"
+                                  value={formData.full_name} placeholder="e.g. Chawan Vikas" onChange={handleChange} />
+                              </Form.Group>
+                            </Col>
+                          </Row>
+
+                          <Row>
+                            <Col sm={6}>
+                              <Form.Group className="mb-3">
+                                <Form.Label className="reg-label">
+                                  {formData.role === 'student' ? 'Enrolment No.' : 'Employee ID'}
+                                </Form.Label>
+                                <Form.Control className="reg-control" type="text" name="identifier"
+                                  value={formData.identifier} 
+                                  placeholder={formData.role === 'student' ? '2024CS001' : 'EMP12345'} 
+                                  onChange={handleChange} />
                               </Form.Group>
                             </Col>
                             <Col sm={6}>
@@ -452,6 +485,11 @@ const RegisterPage = () => {
                               </Form.Group>
                             </Col>
                           </Row>
+
+                          {formData.role === 'admin' && (
+                            <div className="reg-admin-notice mb-3">⚠ Admin registration requires a pre-authorized faculty email ID.</div>
+                          )}
+
                           <div className="d-flex justify-content-end mt-2">
                             <Button className="reg-btn-next" onClick={nextStep}>Continue <ArrowRight size={16} /></Button>
                           </div>
@@ -465,29 +503,33 @@ const RegisterPage = () => {
                             <h5><span className="reg-head-icon"><BookOpen size={15} /></span>Academic Profile</h5>
                             <p>{stepSubtitles[1]}</p>
                           </div>
-                          <Row>
-                            <Col sm={6}>
-                              <Form.Group className="mb-3">
-                                <Form.Label className="reg-label">Programme</Form.Label>
-                                <Form.Select className="reg-control" name="programme"
-                                  value={formData.programme} onChange={handleChange}>
-                                  <option value="B.Tech">B.Tech</option>
-                                  <option value="M.Tech">M.Tech</option>
-                                  <option value="M.Sc">M.Sc</option>
-                                </Form.Select>
-                              </Form.Group>
-                            </Col>
-                            <Col sm={6}>
-                              <Form.Group className="mb-3">
-                                <Form.Label className="reg-label">Current Semester</Form.Label>
-                                <Form.Select className="reg-control" name="semester"
-                                  value={formData.semester} onChange={handleChange}>
-                                  <option value="">— Select Semester —</option>
-                                  {[1,2,3,4,5,6,7,8].map(n => <option key={n} value={n}>Semester {n}</option>)}
-                                </Form.Select>
-                              </Form.Group>
-                            </Col>
-                          </Row>
+                          
+                          {formData.role === 'student' && (
+                            <Row>
+                              <Col sm={6}>
+                                <Form.Group className="mb-3">
+                                  <Form.Label className="reg-label">Programme</Form.Label>
+                                  <Form.Select className="reg-control" name="programme"
+                                    value={formData.programme} onChange={handleChange}>
+                                    <option value="B.Tech">B.Tech</option>
+                                    <option value="M.Tech">M.Tech</option>
+                                    <option value="M.Sc">M.Sc</option>
+                                  </Form.Select>
+                                </Form.Group>
+                              </Col>
+                              <Col sm={6}>
+                                <Form.Group className="mb-3">
+                                  <Form.Label className="reg-label">Current Semester</Form.Label>
+                                  <Form.Select className="reg-control" name="semester"
+                                    value={formData.semester} onChange={handleChange}>
+                                    <option value="">— Select Semester —</option>
+                                    {[1,2,3,4,5,6,7,8].map(n => <option key={n} value={n}>Semester {n}</option>)}
+                                  </Form.Select>
+                                </Form.Group>
+                              </Col>
+                            </Row>
+                          )}
+
                           <Form.Group className="mb-3">
                             <Form.Label className="reg-label">Department</Form.Label>
                             <Form.Select className="reg-control" name="department"
@@ -498,6 +540,7 @@ const RegisterPage = () => {
                               <option value="Mechanical Engineering">Mechanical Engineering</option>
                             </Form.Select>
                           </Form.Group>
+
                           <div className="d-flex justify-content-between mt-2">
                             <Button className="reg-btn-back" onClick={prevStep}><ArrowLeft size={15} /> Back</Button>
                             <Button className="reg-btn-next" onClick={nextStep}>Continue <ArrowRight size={16} /></Button>
@@ -512,29 +555,21 @@ const RegisterPage = () => {
                             <h5><span className="reg-head-icon"><Shield size={15} /></span>Account Security</h5>
                             <p>{stepSubtitles[2]}</p>
                           </div>
+                          
                           <Form.Group className="mb-3">
-                            <Form.Label className="reg-label">Account Role</Form.Label>
-                            <Form.Select className="reg-control" name="role"
-                              value={formData.role} onChange={handleChange} disabled={isLoading}>
-                              <option value="student">Student</option>
-                              <option value="admin">Administrator</option>
-                            </Form.Select>
-                            {formData.role === 'admin' && (
-                              <div className="reg-admin-notice">⚠ Admin registration requires an authorized email ID.</div>
-                            )}
-                          </Form.Group>
-                          <Form.Group className="mb-3">
-                            <Form.Label className="reg-label">G-Suite Email ID</Form.Label>
+                            <Form.Label className="reg-label">Official Email ID</Form.Label>
                             <Form.Control className="reg-control" type="email" name="email"
-                              value={formData.email} placeholder="student@students.iiests.ac.in"
+                              value={formData.email} placeholder="name@iiests.ac.in"
                               onChange={handleChange} disabled={isLoading} />
                           </Form.Group>
+
                           <Form.Group className="mb-3">
                             <Form.Label className="reg-label">Password</Form.Label>
                             <Form.Control className="reg-control" type="password" name="password"
                               value={formData.password} placeholder="Minimum 6 characters"
                               onChange={handleChange} disabled={isLoading} />
                           </Form.Group>
+
                           <div className="d-flex justify-content-between mt-3">
                             <Button className="reg-btn-back" onClick={prevStep} disabled={isLoading}>
                               <ArrowLeft size={15} /> Back

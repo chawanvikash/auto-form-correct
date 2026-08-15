@@ -1,11 +1,10 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useRef, useContext, useEffect } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Container, Row, Col, Card, Form, Button, Alert, Spinner } from 'react-bootstrap';
 import axios from 'axios';
 import { ShieldCheck, AlertCircle, ArrowRight, CheckCircle } from 'lucide-react';
 import { BASE_URL } from '../helper';
-
 
 const PageStyles = () => (
   <style>{`
@@ -82,21 +81,43 @@ const PageStyles = () => (
       margin-bottom: 32px;
     }
 
-    /* ── Form Elements ── */
-    .otp-control {
-      border-radius: 12px !important;
-      border: 2px solid var(--border) !important;
-      font-family: 'Plus Jakarta Sans', sans-serif !important;
-      color: var(--brand-blue) !important;
-      background: #f8fafc !important;
-      transition: all 0.2s ease !important;
+    /* ── Form Elements (6 Boxes) ── */
+    .otp-inputs-container {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 24px;
     }
-    .otp-control:focus {
-      border-color: var(--brand-blue) !important;
-      box-shadow: 0 0 0 4px rgba(37,99,235,0.1) !important;
-      background: #fff !important;
+    .otp-box {
+      width: 48px;
+      height: 56px;
+      border-radius: 12px;
+      border: 2px solid var(--border);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--brand-blue);
+      background: #f8fafc;
+      text-align: center;
+      transition: all 0.2s ease;
+      -moz-appearance: textfield;
     }
-    .otp-control::placeholder { color: var(--text-light) !important; opacity: 0.5; }
+    .otp-box::-webkit-outer-spin-button,
+    .otp-box::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    .otp-box:focus {
+      border-color: var(--brand-blue);
+      box-shadow: 0 0 0 4px rgba(37,99,235,0.1);
+      background: #fff;
+      outline: none;
+    }
+    .otp-box:disabled {
+      background: #e2e8f0;
+      color: var(--text-light);
+      cursor: not-allowed;
+    }
 
     /* ── Buttons ── */
     .otp-btn-submit {
@@ -144,6 +165,8 @@ const PageStyles = () => (
     @media (max-width: 576px) {
       .otp-card-wrap { padding: 40px 24px; }
       .otp-headline { font-size: 24px; }
+      .otp-box { width: 40px; height: 50px; font-size: 20px; }
+      .otp-inputs-container { gap: 6px; }
     }
   `}</style>
 );
@@ -160,23 +183,79 @@ const VerifyOTPPage = () => {
     navigate('/register');
   }
 
-  const [otp, setOtp] = useState('');
+  const [otpValues, setOtpValues] = useState(new Array(6).fill(''));
+  const inputRefs = useRef([]);
+
   const [isLoading, setIsLoading] = useState(false);
+  const [isResending, setIsResending] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  
+  // Timer State (starts at 60s automatically on page load)
+  const [countdown, setCountdown] = useState(60);
+
+  const handleChange = (element, index) => {
+    if (isNaN(element.value)) return;
+    const newOtpValues = [...otpValues];
+    newOtpValues[index] = element.value.substring(element.value.length - 1);
+    setOtpValues(newOtpValues);
+    setError('');
+
+    if (element.value !== '' && index < 5) {
+      inputRefs.current[index + 1].focus();
+    }
+  };
+
+  const handleKeyDown = (e, index) => {
+    if (e.key === 'Backspace') {
+      if (otpValues[index] === '' && index > 0) {
+        inputRefs.current[index - 1].focus();
+      }
+    }
+  };
+
+  const handlePaste = (e) => {
+    e.preventDefault();
+    const pasteData = e.clipboardData.getData('text').replace(/[^0-9]/g, '').slice(0, 6);
+    if (pasteData) {
+      const newOtpValues = [...otpValues];
+      pasteData.split('').forEach((char, index) => {
+        newOtpValues[index] = char;
+      });
+      setOtpValues(newOtpValues);
+      setError('');
+      
+      const focusIndex = Math.min(pasteData.length, 5);
+      inputRefs.current[focusIndex].focus();
+    }
+  };
+
+  // --- Timer logic (useEffect) ---
+  useEffect(() => {
+    let timer;
+    if (countdown > 0) {
+      timer = setInterval(() => {
+        setCountdown((prev) => prev - 1);
+      }, 1000);
+    }
+    // Cleanup the interval when the component unmounts or countdown reaches 0
+    return () => clearInterval(timer);
+  }, [countdown]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setMessage('');
 
-    if (otp.length !== 6) {
+    const finalOtpString = otpValues.join('');
+
+    if (finalOtpString.length !== 6) {
       return setError('Please enter a valid 6-digit OTP.');
     }
 
     setIsLoading(true);
     try {     
-      const res = await axios.post(url + '/api/auth/verify-otp', { email, otp });     
+      const res = await axios.post(url + '/api/auth/verify-otp', { email, otp: finalOtpString });     
       login(res.data.token, res.data.user);     
       setMessage('Account verified! Taking you to the dashboard...');
       
@@ -191,6 +270,27 @@ const VerifyOTPPage = () => {
     }
   };
 
+  // --- Resend OTP Logic ---
+  const handleResendOTP = async () => {
+    setIsResending(true);
+    setError('');
+    setMessage('');
+    
+    // Clear the current boxes when they request a new OTP
+    setOtpValues(new Array(6).fill(''));
+    if(inputRefs.current[0]) inputRefs.current[0].focus();
+
+    try {
+      const res = await axios.post(url + '/api/auth/resend-otp', { email });
+      setMessage(res.data.message || "A new 6-digit code has been sent to your email.");
+      setCountdown(60); // Reset the timer after a successful resend
+    } catch (err) {
+      setError(err.response?.data?.error || "Failed to resend OTP. Please try again.");
+    } finally {
+      setIsResending(false);
+    }
+  };
+
   return (
     <>
       <PageStyles />
@@ -201,12 +301,10 @@ const VerifyOTPPage = () => {
               
               <Card className="otp-card-wrap animate-fade-up text-center">
                 
-                {/* 1. Icon */}
                 <div className="otp-icon-wrapper animate-fade-up delay-100">
                   <ShieldCheck size={36} strokeWidth={2.5} />
                 </div>
                 
-                {/* 2. Headline & Subtext */}
                 <div className="animate-fade-up delay-200">
                   <h4 className="otp-headline">Verify Your Email</h4>
                   <p className="otp-subtext">
@@ -215,7 +313,6 @@ const VerifyOTPPage = () => {
                   </p>
                 </div>
 
-                {/* 3. Alerts */}
                 {error && (
                   <div className="otp-alert animate-fade-up delay-200">
                     <AlertCircle className="flex-shrink-0" size={18} />
@@ -229,36 +326,35 @@ const VerifyOTPPage = () => {
                   </div>
                 )}
 
-                {/* 4. Form */}
                 <Form onSubmit={handleSubmit} className="animate-fade-up delay-300">
-                  <Form.Group className="mb-4">
-                    <Form.Control 
-                      type="text" 
-                      maxLength="6"
-                      value={otp}
-                      onChange={(e) => {
-                        // Only allow numbers
-                        const val = e.target.value.replace(/[^0-9]/g, '');
-                        setOtp(val);
-                        setError('');
-                      }}
-                      placeholder="• • • • • •" 
-                      className="otp-control text-center fw-bold py-3"
-                      required 
-                      disabled={isLoading || message}
-                      style={{ 
-                        fontSize: '28px', 
-                        letterSpacing: otp ? '0.5em' : '0.2em' 
-                      }}
-                    />
-                  </Form.Group>
+                  
+                  <div className="otp-inputs-container">
+                    {otpValues.map((data, index) => (
+                      <input
+                        key={index}
+                        id={`otp-input-${index}`}
+                        name={`otp-input-${index}`}
+                        autoComplete={index === 0 ? "one-time-code" : "off"}
+                        type="text"
+                        inputMode="numeric"
+                        maxLength="1"
+                        ref={el => inputRefs.current[index] = el}
+                        value={data}
+                        onChange={e => handleChange(e.target, index)}
+                        onKeyDown={e => handleKeyDown(e, index)}
+                        onPaste={handlePaste}
+                        className="otp-box"
+                        disabled={isLoading || isResending || (message && message.includes('Account verified'))}
+                      />
+                    ))}
+                  </div>
 
                   <Button 
                     type="submit" 
                     className="otp-btn-submit w-100"
-                    disabled={isLoading || otp.length !== 6 || message}
+                    disabled={isLoading || isResending || otpValues.join('').length !== 6 || (message && message.includes('Account verified'))}
                   >
-                    {isLoading || message ? (
+                    {isLoading ? (
                       <><Spinner as="span" animation="border" size="sm" className="me-2"/> Verifying...</>
                     ) : (
                       <>Verify Account <ArrowRight size={18} className="ms-1" /></>
@@ -266,16 +362,17 @@ const VerifyOTPPage = () => {
                   </Button>
                 </Form>
 
-                {/* 5. Footer */}
                 <div className="mt-4 pt-3 border-top animate-fade-up delay-400" style={{ borderColor: 'var(--border)' }}>
                   <p className="text-muted mb-0" style={{ fontSize: '13.5px' }}>
                     Didn't receive the code? 
                     <button 
+                      onClick={handleResendOTP}
+                      type="button"
                       className="btn btn-link p-0 fw-bold ms-1 text-decoration-none" 
-                      style={{ color: 'var(--brand-blue)' }}
-                      disabled={isLoading || message}
+                      style={{ color: countdown > 0 ? 'var(--text-light)' : 'var(--brand-blue)' }}
+                      disabled={isLoading || isResending || countdown > 0 || (message && message.includes('Account verified'))}
                     >
-                      Resend OTP
+                      {isResending ? 'Sending...' : countdown > 0 ? `Resend in ${countdown}s` : 'Resend OTP'}
                     </button>
                   </p>
                 </div>

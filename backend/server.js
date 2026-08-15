@@ -5,8 +5,8 @@ const express = require("express");
 const app = express();
 const cors = require("cors");
 const port = process.env.PORT || 5000;
-const authRoutes=require("./routes/authRoutes");
-const scanRoutes=require("./routes/scanRoutes");
+const authRoutes = require("./routes/authRoutes");
+// const modelRoutes = require("./routes/modelRoutes");
 const pool = require("./config/db"); 
 const ExpressError = require("./utils/ExpressError");
 const wrapAsync = require("./utils/wrapAsync");
@@ -15,21 +15,21 @@ const wrapAsync = require("./utils/wrapAsync");
 app.use(cors());
 app.use(express.json());
 
-app.use("/api/auth",authRoutes);
-app.use("/api/model",scanRoutes);
+// Routes
+app.use("/api/auth", authRoutes);
+// app.use("/api/model", modelRoutes);
 
 pool.query("SELECT NOW()", (err, res) => {
     if (err) {
         console.error("Database Connection Error:", err.message);
     } else {
-        console.log("PostgreSQL Connected ");
+        console.log("PostgreSQL Connected 🟢");
     }
 });
 
 app.get("/", (req, res) => {
     res.send("API is running - Auto-Form-Correct Portal");
 });
-
 
 // 404 Handler
 app.use((req, res, next) => {
@@ -52,9 +52,10 @@ app.use((err, req, res, next) => {
 
     // 3. PostgreSQL Specific Errors
     if (err.code === '23505') { 
-        // Unique violation (e.g., trying to register an existing email)
+        // FIX: Updated message to reflect the new multi-role 'identifier' schema
         statusCode = 400;
-        message = "An account with this Email or Enrolment Number already exists.";
+        message = "An account with this Email or Identifier (Enrolment No / Employee ID) already exists.";
+        
     } else if (err.code === '22P02') { 
         // Invalid text representation (e.g., sending letters to an integer column)
         statusCode = 400;

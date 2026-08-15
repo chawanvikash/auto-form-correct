@@ -266,8 +266,8 @@ const LoginPage = () => {
 
                       <ul className="reg-feature-list">
                         {[
-                          { icon: <BookOpen size={14} color="#93c5fd" />, title: 'Smart Submit',    desc: 'Convert handwritten regisration forms into digital document.' },
-                          { icon: <Shield   size={14} color="#86efac" />, title: 'Secure Access',  desc: 'G-Suite verified login for IIEST students only' },
+                          { icon: <BookOpen size={14} color="#93c5fd" />, title: 'Smart Submit',    desc: 'Convert handwritten registration forms into digital documents.' },
+                          { icon: <Shield   size={14} color="#86efac" />, title: 'Secure Access',  desc: 'G-Suite verified login for IIEST students and faculty' },
                           { icon: <User     size={14} color="#fcd34d" />, title: 'Personal Dashboard',desc: 'Track your courses, tasks and progress easily' },
                         ].map((f) => (
                           <li key={f.title}>
@@ -304,13 +304,13 @@ const LoginPage = () => {
 
                     <Form onSubmit={handleSubmit} className="mt-2">
                       <Form.Group className="mb-4 animate-fade-up delay-200">
-                        <Form.Label className="reg-label">G-Suite Email ID</Form.Label>
+                        <Form.Label className="reg-label">Official Email ID</Form.Label>
                         <Form.Control 
                           className="reg-control" 
                           type="email" 
                           name="email" 
                           value={formData.email}
-                          placeholder="student@students.iiests.ac.in" 
+                          placeholder="name@iiests.ac.in" 
                           onChange={handleChange} 
                           required 
                           disabled={isLoading}

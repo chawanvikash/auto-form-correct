@@ -388,8 +388,8 @@ const Dashboard = () => {
                   <User size={24} />
                 </div>
                 <div>
-                  <h5 className="fw-bold text-dark mb-0" style={{ fontSize: '16px' }}>{user?.name || "Student"}</h5>
-                  <span className="text-primary fw-semibold" style={{ fontSize: '13px' }}>{user?.enrolment_no || "No ID"}</span>
+                  <h5 className="fw-bold text-dark mb-0" style={{ fontSize: '16px' }}>{user?.name || "User"}</h5>
+                  <span className="text-primary fw-semibold" style={{ fontSize: '13px' }}>{user?.identifier || "No ID"}</span>
                 </div>
               </div>
               
@@ -398,10 +398,19 @@ const Dashboard = () => {
                   <div className="text-muted fw-bold mb-1" style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Department</div>
                   <div className="fw-semibold text-dark" style={{ fontSize: '13px' }}>{user?.department || "N/A"}</div>
                 </div>
-                <div>
-                  <div className="text-muted fw-bold mb-1" style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Semester</div>
-                  <div className="fw-semibold text-dark" style={{ fontSize: '13px' }}>{user?.semester || "N/A"}</div>
-                </div>
+                
+                {/* Conditionally render Semester for Students only */}
+                {user?.role === 'student' ? (
+                  <div>
+                    <div className="text-muted fw-bold mb-1" style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Semester</div>
+                    <div className="fw-semibold text-dark" style={{ fontSize: '13px' }}>{user?.semester || "N/A"}</div>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="text-muted fw-bold mb-1" style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Role</div>
+                    <div className="fw-semibold text-dark text-capitalize" style={{ fontSize: '13px' }}>{user?.role || "Faculty"}</div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -445,17 +454,17 @@ const Dashboard = () => {
                     <Row>
                       <Col sm={6}>
                         <div className="dash-result-label">Student Name</div>
-                        <div className="dash-result-value">{result.verified_data?.student_name || 'N/A'}</div>
+                        <div className="dash-result-value">{result.extractedData?.full_name || 'N/A'}</div>
                       </Col>
                       <Col sm={6}>
                         <div className="dash-result-label">Registration No.</div>
-                        <div className="dash-result-value">{result.verified_data?.registration_no || 'N/A'}</div>
+                        <div className="dash-result-value">{result.extractedData?.enrolment_no || 'N/A'}</div>
                       </Col>
                     </Row>
                     
                     <div className="dash-result-label mt-2">Verified Subjects</div>
                     <div className="d-flex flex-wrap gap-2 mt-2">
-                      {result.verified_data?.subjects?.map(sub => (
+                      {result.extractedData?.subjects?.map(sub => (
                         <span key={sub} className="badge bg-primary px-3 py-2 rounded-pill fw-semibold" style={{ fontSize: '13px' }}>
                           {sub}
                         </span>
@@ -464,8 +473,8 @@ const Dashboard = () => {
 
                     <div className="mt-4 pt-3 border-top">
                       <div className="dash-result-label">Cloudinary Image Backup</div>
-                      <a href={result.document_url} target="_blank" rel="noopener noreferrer" className="text-truncate d-block text-primary" style={{ fontSize: '13px', fontWeight: 500 }}>
-                        {result.document_url}
+                      <a href={result.imageUrl || result.document_url} target="_blank" rel="noopener noreferrer" className="text-truncate d-block text-primary" style={{ fontSize: '13px', fontWeight: 500 }}>
+                        {result.imageUrl || result.document_url || 'Link generated'}
                       </a>
                     </div>
                   </div>

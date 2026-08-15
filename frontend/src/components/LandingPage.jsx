@@ -206,8 +206,8 @@ const LandingPage = () => {
           {/* 3. Typewriter Subtext */}
           <div className="landing-subtext animate-fade-up delay-200 mb-5">
             <Typewriter 
-              text="The official IIEST Semester Registration AI Evaluator. Instantly cross-check your handwritten registration forms against the official curriculum." 
-              typingSpeed={35}     
+              text="The unified IIEST Academic AI Portal. Automating semester registration workflows and intelligent document extraction for students" 
+              typingSpeed={50}     
               pauseDuration={4000} 
             />
           </div>

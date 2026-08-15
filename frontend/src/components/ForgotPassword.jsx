@@ -1,10 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Container, Card, Button, Form, Alert, Spinner, Row, Col } from 'react-bootstrap';
 import { Mail, ArrowLeft, Key, Lock, AlertCircle, CheckCircle, ArrowRight } from 'lucide-react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { BASE_URL } from '../helper';
-
 
 const PageStyles = () => (
   <style>{`
@@ -105,16 +104,43 @@ const PageStyles = () => (
     }
     .fp-control::placeholder { color: var(--text-light) !important; font-weight: 400; }
 
-    /* Special large input for OTP */
-    .fp-otp-control {
-      font-family: 'Plus Jakarta Sans', sans-serif !important;
-      font-size: 28px !important;
-      color: var(--brand-blue) !important;
-      text-align: center;
-      padding: 16px !important;
-      letter-spacing: 0.4em !important;
+    /* ── Form Elements (6 Boxes) ── */
+    .fp-inputs-container {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 24px;
     }
-    .fp-otp-control::placeholder { letter-spacing: 0.2em !important; opacity: 0.4; }
+    .fp-box {
+      width: 48px;
+      height: 56px;
+      border-radius: 12px;
+      border: 2px solid var(--border);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--brand-blue);
+      background: #f8fafc;
+      text-align: center;
+      transition: all 0.2s ease;
+      -moz-appearance: textfield;
+    }
+    .fp-box::-webkit-outer-spin-button,
+    .fp-box::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    .fp-box:focus {
+      border-color: var(--brand-blue);
+      box-shadow: 0 0 0 4px rgba(37,99,235,0.1);
+      background: #fff;
+      outline: none;
+    }
+    .fp-box:disabled {
+      background: #e2e8f0;
+      color: var(--text-light);
+      cursor: not-allowed;
+    }
 
     /* ── Buttons ── */
     .fp-btn-submit {
@@ -166,6 +192,8 @@ const PageStyles = () => (
     @media (max-width: 576px) {
       .fp-card-wrap { padding: 40px 24px; }
       .fp-headline { font-size: 24px; }
+      .fp-box { width: 40px; height: 50px; font-size: 20px; }
+      .fp-inputs-container { gap: 6px; }
     }
   `}</style>
 );
@@ -175,15 +203,22 @@ const ForgotPassword = () => {
   
   const [step, setStep] = useState(1); 
   const [email, setEmail] = useState('');
-  const [otp, setOtp] = useState('');
+  
+  // Array state for the 6 boxes
+  const [otpValues, setOtpValues] = useState(new Array(6).fill(''));
+  const inputRefs = useRef([]);
+  
+  // Timer State
+  const [countdown, setCountdown] = useState(0); 
+
   const [newPassword, setNewPassword] = useState('');
   const [resetToken, setResetToken] = useState(null); 
   
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isResending, setIsResending] = useState(false);
 
-  
   const stepConfig = {
     1: { icon: <Mail size={32} />, title: "Reset Password", subtext: "Enter your official email and we'll send you a 6-digit verification code." },
     2: { icon: <Key size={32} />, title: "Enter Code", subtext: "Please check your inbox and enter the 6-digit verification code we just sent." },
@@ -197,6 +232,7 @@ const ForgotPassword = () => {
       const res = await axios.post(`${BASE_URL}/api/auth/forgot-password`, { email });
       setMessage(res.data.message);
       setStep(2); 
+      setCountdown(60); // Initialize the timer when moving to Step 2
     } catch (err) {
       setError(err.response?.data?.error || "Failed to send OTP.");
     } finally {
@@ -204,11 +240,69 @@ const ForgotPassword = () => {
     }
   };
 
+  // --- OTP Box Handlers ---
+  const handleOtpChange = (element, index) => {
+    if (isNaN(element.value)) return;
+    const newOtpValues = [...otpValues];
+    newOtpValues[index] = element.value.substring(element.value.length - 1);
+    setOtpValues(newOtpValues);
+    setError('');
+
+    if (element.value !== '' && index < 5) {
+      inputRefs.current[index + 1].focus();
+    }
+  };
+
+  const handleOtpKeyDown = (e, index) => {
+    if (e.key === 'Backspace') {
+      if (otpValues[index] === '' && index > 0) {
+        inputRefs.current[index - 1].focus();
+      }
+    }
+  };
+
+  const handleOtpPaste = (e) => {
+    e.preventDefault();
+    const pasteData = e.clipboardData.getData('text').replace(/[^0-9]/g, '').slice(0, 6);
+    if (pasteData) {
+      const newOtpValues = [...otpValues];
+      pasteData.split('').forEach((char, index) => {
+        newOtpValues[index] = char;
+      });
+      setOtpValues(newOtpValues);
+      setError('');
+      
+      const focusIndex = Math.min(pasteData.length, 5);
+      if(inputRefs.current[focusIndex]) inputRefs.current[focusIndex].focus();
+    }
+  };
+
+  // --- Timer logic (useEffect) ---
+  useEffect(() => {
+    let timer;
+    if (countdown > 0) {
+      timer = setInterval(() => {
+        setCountdown((prev) => prev - 1);
+      }, 1000);
+    }
+    // Cleanup the interval when the component unmounts or countdown reaches 0
+    return () => clearInterval(timer);
+  }, [countdown]);
+
+  // --- Submit OTP ---
   const handleOtpSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true); setError(null); setMessage(null);
+    
+    const finalOtpString = otpValues.join('');
+    
+    if (finalOtpString.length !== 6) {
+      setIsLoading(false);
+      return setError('Please enter a valid 6-digit OTP.');
+    }
+
     try {
-      const res = await axios.post(`${BASE_URL}/api/auth/verify-reset-otp`, { email, otp });
+      const res = await axios.post(`${BASE_URL}/api/auth/verify-reset-otp`, { email, otp: finalOtpString });
       if (res.data.success && res.data.resetToken) {
         setResetToken(res.data.resetToken);
         setMessage("OTP Verified! Please create a new password.");
@@ -221,11 +315,33 @@ const ForgotPassword = () => {
     }
   };
 
+  // --- Resend OTP Logic ---
+  const handleResendOTP = async () => {
+    setIsResending(true);
+    setError(null);
+    setMessage(null);
+    
+    // Clear boxes
+    setOtpValues(new Array(6).fill(''));
+    if(inputRefs.current[0]) inputRefs.current[0].focus();
+
+    try {
+      // Calling forgot-password again regenerates the token perfectly
+      const res = await axios.post(`${BASE_URL}/api/auth/forgot-password`, { email });
+      setMessage("A new 6-digit code has been sent to your email.");
+      setCountdown(60); // Reset the timer after successful resend
+    } catch (err) {
+      setError(err.response?.data?.error || "Failed to resend OTP.");
+    } finally {
+      setIsResending(false);
+    }
+  };
+
   const handlePasswordSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true); setError(null); setMessage(null);
     try {
-      const res = await axios.post(`${BASE_URL}/api/auth/reset-password/${resetToken}`, { newPassword });
+      const res = await axios.post(`${BASE_URL}/api/auth/reset-password/${resetToken}`, { newPassword, email });
       setMessage(res.data.message);
       setTimeout(() => navigate('/login'), 3000); 
     } catch (err) {
@@ -280,7 +396,7 @@ const ForgotPassword = () => {
                       <Form.Control 
                         type="email" 
                         required 
-                        placeholder="student@students.iiests.ac.in" 
+                        placeholder="name@iiests.ac.in" 
                         value={email} 
                         onChange={(e) => setEmail(e.target.value)}
                         className="fp-control"
@@ -293,29 +409,53 @@ const ForgotPassword = () => {
                   </Form>
                 )}
 
-                {/* STEP 2: OTP */}
+                {/* STEP 2: OTP (6 Boxes) */}
                 {step === 2 && (
-                  <Form onSubmit={handleOtpSubmit} className="step-fade delay-100">
-                    <Form.Group className="mb-4">
-                      <Form.Control 
-                        type="text" 
-                        required 
-                        maxLength="6"
-                        placeholder="• • • • • •" 
-                        value={otp} 
-                        onChange={(e) => {
-                          const val = e.target.value.replace(/[^0-9]/g, '');
-                          setOtp(val);
-                          setError('');
-                        }}
-                        className="fp-control fp-otp-control"
-                        disabled={isLoading}
-                      />
-                    </Form.Group>
-                    <Button type="submit" className="fp-btn-submit w-100" disabled={isLoading || otp.length !== 6}>
-                      {isLoading ? <><Spinner as="span" animation="border" size="sm"/> Verifying...</> : <>Verify Code <ArrowRight size={18}/></>}
-                    </Button>
-                  </Form>
+                  <div className="step-fade delay-100">
+                    <Form onSubmit={handleOtpSubmit}>
+                      <div className="fp-inputs-container">
+                        {otpValues.map((data, index) => (
+                          <input
+                            key={index}
+                            id={`fp-otp-input-${index}`}
+                            name={`fp-otp-input-${index}`}
+                            autoComplete={index === 0 ? "one-time-code" : "off"}
+                            type="text"
+                            inputMode="numeric"
+                            maxLength="1"
+                            ref={el => inputRefs.current[index] = el}
+                            value={data}
+                            onChange={e => handleOtpChange(e.target, index)}
+                            onKeyDown={e => handleOtpKeyDown(e, index)}
+                            onPaste={handleOtpPaste}
+                            className="fp-box"
+                            disabled={isLoading || isResending || (message && message.includes("Verified"))}
+                          />
+                        ))}
+                      </div>
+
+                      <Button 
+                        type="submit" 
+                        className="fp-btn-submit w-100 mb-3" 
+                        disabled={isLoading || isResending || otpValues.join('').length !== 6 || (message && message.includes("Verified"))}
+                      >
+                        {isLoading ? <><Spinner as="span" animation="border" size="sm"/> Verifying...</> : <>Verify Code <ArrowRight size={18}/></>}
+                      </Button>
+                    </Form>
+                    
+                    <p className="text-muted mb-0" style={{ fontSize: '13.5px' }}>
+                      Didn't receive the code? 
+                      <button 
+                        onClick={handleResendOTP}
+                        type="button"
+                        className="btn btn-link p-0 fw-bold ms-1 text-decoration-none" 
+                        style={{ color: countdown > 0 ? 'var(--text-light)' : 'var(--brand-blue)' }}
+                        disabled={isLoading || isResending || countdown > 0 || (message && message.includes("Verified"))}
+                      >
+                        {isResending ? 'Sending...' : countdown > 0 ? `Resend in ${countdown}s` : 'Resend OTP'}
+                      </button>
+                    </p>
+                  </div>
                 )}
 
                 {/* STEP 3: NEW PASSWORD */}

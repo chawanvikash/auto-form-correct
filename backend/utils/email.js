@@ -1,77 +1,84 @@
-require('dotenv').config();
-const nodemailer = require('nodemailer');
+const nodemailer = require("nodemailer");
+
+const getTransporter = () => {
+    if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+        console.error("CRITICAL ERROR: GMAIL_USER or GMAIL_APP_PASSWORD is missing from the .env file.");
+    }
+    
+    return nodemailer.createTransport({
+        service: "gmail",
+        auth: {
+            user: process.env.GMAIL_USER,
+            pass: process.env.GMAIL_APP_PASSWORD,
+        },
+    });
+};
 
 const sendVerificationEmail = async (email, otp) => {
     try {
-        const transporter = nodemailer.createTransport({
-            service: 'gmail',
-            auth: {
-                user: process.env.GMAIL_USER, 
-                pass: process.env.GMAIL_APP_PASSWORD 
-            }
-        });
-
+        const transporter = getTransporter(); 
         const mailOptions = {
-            from: `"IIEST Portal" <${process.env.GMAIL_USER}>`,
+            from: process.env.GMAIL_USER,
             to: email,
-            subject: "Your Verification Code - IIEST Portal",
+            subject: "Ink2Data: Verify Your Official Email",
             html: `
-                <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee; max-width: 500px; margin: 0 auto; border-radius: 8px;">
-                    <h2 style="color: #333;">Welcome to the Department Portal!</h2>
-                    <p style="color: #555; font-size: 16px;">To verify your email address, please use the following One-Time Password (OTP):</p>
-                    <div style="background-color: #f8f9fa; padding: 15px; text-align: center; border-radius: 5px; margin: 20px 0;">
-                        <h1 style="color: #0d6efd; letter-spacing: 5px; margin: 0;">${otp}</h1>
-                    </div>
-                    <p style="color: #888; font-size: 14px;">This code expires in 15 minutes.</p>
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 10px;">
+                <h2 style="color: #1b3f6e; margin-bottom: 20px;">Welcome to Ink2Data</h2>
+                <p style="color: #475569; font-size: 16px; line-height: 1.5;">
+                    Please verify your official IIEST email address to complete your registration.
+                    Here is your 6-digit verification code:
+                </p>
+                <div style="background-color: #f0fdf4; border: 2px dashed #16a34a; padding: 15px; text-align: center; border-radius: 8px; margin: 25px 0;">
+                    <span style="font-size: 32px; font-weight: bold; color: #16a34a; letter-spacing: 5px;">${otp}</span>
                 </div>
-            `
-        };
-
-        const info = await transporter.sendMail(mailOptions);
-        console.log(`📧 Email sent successfully via Gmail! Message ID: ${info.messageId}`);
-
-    } catch (error) {
-        console.error("🚨 Nodemailer Error:", error);
-        throw new Error("Failed to send verification email via Gmail.");
-    }
-};
-
-const sendPasswordResetEmail = async (email, resetUrl) => {
-    try {
-        const transporter = nodemailer.createTransport({
-            service: 'gmail',
-            auth: {
-                user: process.env.GMAIL_USER, 
-                pass: process.env.GMAIL_APP_PASSWORD 
-            }
-        });
-
-        const mailOptions = {
-            from: `"Ink2Data Portal" <${process.env.GMAIL_USER}>`,
-            to: email,
-            subject: "Password Reset Request - Ink2Data",
-            html: `
-                <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee; max-width: 500px; margin: 0 auto; border-radius: 8px;">
-                    <h2 style="color: #333;">Password Reset Request</h2>
-                    <p style="color: #555; font-size: 16px;">We received a request to reset your password. Click the button below to create a new one:</p>
-                    <div style="text-align: center; margin: 30px 0;">
-                        <a href="${resetUrl}" style="background-color: #0d6efd; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Reset Password</a>
-                    </div>
-                    <p style="color: #888; font-size: 14px;">This link will expire in 15 minutes.</p>
-                </div>
+                <p style="color: #475569; font-size: 14px;">
+                    <strong>Note:</strong> This code will expire in 15 minutes.
+                </p>
+            </div>
             `
         };
 
         await transporter.sendMail(mailOptions);
-        console.log(`📧 Password Reset Email sent to ${email}`);
-
+        console.log(`📧 Registration OTP sent successfully to ${email}`);
     } catch (error) {
-        console.error("🚨 Nodemailer Error (Reset):", error);
-        throw new Error("Failed to send reset email.");
+        console.error("Failed to send Registration OTP:", error);
+        throw new Error("Failed to send email");
+    }
+};
+
+const sendPasswordResetEmail = async (email, otp) => {
+    try {
+        const transporter = getTransporter(); 
+        const mailOptions = {
+            from: process.env.GMAIL_USER,
+            to: email,
+            subject: "Ink2Data: Password Reset Code",
+            html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 10px;">
+                <h2 style="color: #1b3f6e; margin-bottom: 20px;">Password Reset Request</h2>
+                <p style="color: #475569; font-size: 16px; line-height: 1.5;">
+                    We received a request to reset your password for your Ink2Data Academic Portal account. 
+                    Please enter the following 6-digit verification code to proceed:
+                </p>
+                <div style="background-color: #f8fafc; border: 2px dashed #2563eb; padding: 15px; text-align: center; border-radius: 8px; margin: 25px 0;">
+                    <span style="font-size: 32px; font-weight: bold; color: #2563eb; letter-spacing: 5px;">${otp}</span>
+                </div>
+                <p style="color: #475569; font-size: 14px;">
+                    <strong>Note:</strong> This code will expire in 15 minutes. If you did not request a password reset, please ignore this email.
+                </p>
+            </div>
+            `
+        };
+
+        await transporter.sendMail(mailOptions);
+        console.log(`📧 Password Reset OTP sent successfully to ${email}`);
+    } catch (error) {
+        console.error("Failed to send Password Reset OTP:", error);
+        throw new Error("Failed to send email");
     }
 };
 
 module.exports = {
     sendVerificationEmail,
-    sendPasswordResetEmail 
+    sendPasswordResetEmail
 };
