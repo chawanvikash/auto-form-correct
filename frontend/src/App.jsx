@@ -8,6 +8,7 @@ import VerifyOTPPage from "./components/VerifyOTPPage";
 import Dashboard from "./components/Dashboard";
 import Typewriter from "./components/Typewriter";
 import ForgotPassword from './components/ForgotPassword';
+import VerificationResult from "./components/VerificationResult";
 
 
 function App() {
@@ -20,7 +21,7 @@ function App() {
         <Route path="/verify-otp" element={<VerifyOTPPage />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>}/>
-               
+        <Route path="/result" element={<ProtectedRoute><VerificationResult /></ProtectedRoute>} />              
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </AuthProvider>
