@@ -1,57 +1,81 @@
 require("dotenv").config();
+const dns = require('dns');                     
+dns.setDefaultResultOrder('ipv4first');
 const express = require("express");
 const router = express.Router();
 const multer = require("multer");
 const { cloudinary } = require("../config/cloudinary");
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { GoogleGenAI } = require("@google/genai"); 
 const pool = require("../config/db");
 const wrapAsync = require("../utils/wrapAsync");
 const ExpressError = require("../utils/ExpressError");
+const { requireAuth, requireRole } = require("../utils/middleWare");
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// ============================================================================
+// Initialize the new AI client
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
+
+
+
 // STEP 1: Upload to Cloudinary
-// ============================================================================
-router.post("/upload-image", upload.single("registration_form"), wrapAsync(async (req, res) => {
-    if (!req.file) throw new ExpressError(400, "No image file provided.");
 
-    const b64 = Buffer.from(req.file.buffer).toString("base64");
-    const dataURI = "data:" + req.file.mimetype + ";base64," + b64;
-    
-    const cloudinaryResponse = await cloudinary.uploader.upload(dataURI, {
-        folder: "semester_registrations",
-    });
+router.post("/upload-image", requireAuth, requireRole("student"), upload.single("registration_form"), async (req, res, next) => {
+    try {
+        console.log("1. Route hit. Auth passed.");
+        console.log("2. req.file exists?", !!req.file);
 
-    res.status(200).json({ success: true, imageUrl: cloudinaryResponse.secure_url });
-}));
+        if (!req.file) {
+            return res.status(400).json({ error: "No image file provided by Multer." });
+        }
 
-// ============================================================================
-// STEP 2: Extract Data via Gemini OCR 
-// ============================================================================
-router.post("/extract-data", wrapAsync(async (req, res) => {
+        const b64 = Buffer.from(req.file.buffer).toString("base64");
+        const dataURI = "data:" + req.file.mimetype + ";base64," + b64;
+        
+        console.log("3. Attempting Cloudinary upload...");
+        const cloudinaryResponse = await cloudinary.uploader.upload(dataURI, {
+            folder: "semester_registrations",
+        });
+
+        console.log("4. Cloudinary Success!");
+        res.status(200).json({ success: true, imageUrl: cloudinaryResponse.secure_url });
+        
+    } catch (error) {
+        
+        console.error(error);
+        
+        
+        res.status(500).json({ 
+            success: false, 
+            message: "Upload crashed. Check backend terminal.",
+            rawError: error
+        });
+    }
+});
+
+
+// STEP 2: Extract Data via Gemini OCR (UPDATED FOR NEW SDK)
+
+router.post("/extract-data", requireAuth, requireRole("student"), wrapAsync(async (req, res) => {
     const { imageUrl } = req.body;
     if (!imageUrl) throw new ExpressError(400, "Image URL is required.");
 
-    const model = genAI.getGenerativeModel({ model: "gemini-3.6-flash" });
     const imageResp = await fetch(imageUrl);
     const imageBuffer = await imageResp.arrayBuffer();
     const mimeType = imageResp.headers.get('content-type') || 'image/jpeg';
 
-   
-    // UPDATED PROMPT: Distinguishing Theory vs Practical Tables
-    // UPDATED PROMPT: Extracting strict 'Core' or 'Elective' categories
     const prompt = `
         Analyze this IIEST Shibpur Semester Registration Form. 
         Extract the handwritten or typed text and return ONLY a strict JSON object. 
-        Auto-correct obvious spelling errors in names or academic terms.
         
         CRITICAL RULES:
         1. "semester" MUST be an Integer (e.g., 5). Strip away "th" or "V".
         2. "enrolment_no" MUST be exactly 10 characters (e.g., "2024CSB086"). Remove spaces.
-        3. For "subjects", explicitly extract the exact "subject_category" written on the form. This MUST be either "Core" or "Elective" for all tables. Do NOT invent categories like "Practical/Lab".
+        3. EXACT EXTRACTION: You MUST extract the "subject_code" exactly as it is handwritten. Do NOT auto-correct course codes.
+        4. "subject_type": Look at the table headers. If the subject is in the Theory table, set this to "Theory". If in the Practical/Laboratory table, set to "Practical".
+        5. "subject_category": Extract "Core" or "Elective" if written. The Practical table does NOT have this column, so set it to null.
         
         Required JSON Structure:
         {
@@ -63,22 +87,38 @@ router.post("/extract-data", wrapAsync(async (req, res) => {
             "g_suite_id": "String",
             "mobile_no": "String",
             "subjects": [
-                { "subject_code": "String", "subject_name": "String", "subject_category": "String", "credit": Number }
+                { 
+                  "subject_code": "String", 
+                  "subject_name": "String", 
+                  "subject_type": "String",
+                  "subject_category": "String" | null, 
+                  "credit": Number 
+                }
             ]
         }
     `;
 
-    const result = await model.generateContent([{ inlineData: { data: Buffer.from(imageBuffer).toString("base64"), mimeType: mimeType } }, prompt]);
-    const cleanJsonString = result.response.text().replace(/```json/g, "").replace(/```/g, "").trim();
+    
+    const response = await ai.models.generateContent({
+        model: "gemini-3.6-flash",
+        contents: [
+            prompt,
+            { inlineData: { data: Buffer.from(imageBuffer).toString("base64"), mimeType: mimeType } }
+        ]
+    });
+
+    // The new SDK uses response.text directly
+    const cleanJsonString = response.text.replace(/```json/g, "").replace(/```/g, "").trim();
     const extractedData = JSON.parse(cleanJsonString);
 
     res.status(200).json({ success: true, extractedData });
 }));
 
-// ============================================================================
+
+
 // STEP 3: Verify Data (Strict Normalized Matching)
-// ============================================================================
-router.post("/verify-data", wrapAsync(async (req, res) => {
+
+router.post("/verify-data", requireAuth, requireRole("student"), wrapAsync(async (req, res) => {
     const { enrolment_no, extractedData, imageUrl } = req.body;
 
     // 1. Fetch Student Data
@@ -146,13 +186,29 @@ router.post("/verify-data", wrapAsync(async (req, res) => {
     }
 
     // Rule C: Check if every extracted subject matches the DB exactly
+    // Rule C: Check if every extracted subject matches the DB exactly
     (extractedData.subjects || []).forEach(scannedSub => {
         const dbSub = offeredSubjects.find(s => s.subject_code === scannedSub.subject_code);
+        
         if (!dbSub) {
             subjectErrors.push(`Invalid subject code detected: ${scannedSub.subject_code}`);
         } else {
-            if (parseInt(scannedSub.credit) !== parseInt(dbSub.credits)) subjectErrors.push(`Credit mismatch for ${scannedSub.subject_code}`);
-            if (cleanStr(scannedSub.subject_category) !== cleanStr(dbSub.subject_category)) subjectErrors.push(`Category mismatch for ${scannedSub.subject_code}`);
+            // 1. Check Credits
+            if (parseInt(scannedSub.credit) !== parseInt(dbSub.credits)) {
+                subjectErrors.push(`Credit mismatch for ${scannedSub.subject_code}`);
+            }
+            
+            // 2. Only strictly check the category if the student actually provided it (Theory table)
+            if (scannedSub.subject_category && cleanStr(scannedSub.subject_category) !== "n/a") {
+                if (cleanStr(scannedSub.subject_category) !== cleanStr(dbSub.subject_category)) {
+                    subjectErrors.push(`Category mismatch for ${scannedSub.subject_code}`);
+                }
+            }
+
+            // 3. UI FIX: Overwrite the scanned data with the true DB data
+            // This ensures the frontend displays "Core"/"Elective" and "Theory"/"Practical" properly instead of N/A
+            scannedSub.subject_category = dbSub.subject_category;
+            scannedSub.subject_type = dbSub.subject_type;
         }
     });
 
@@ -180,21 +236,29 @@ router.post("/verify-data", wrapAsync(async (req, res) => {
     }
 }));
 
-// ============================================================================
+
 // STEP 4: Final Registration
-// ============================================================================
-router.post("/register-subjects", wrapAsync(async (req, res) => {
-    const { enrolment_no, subjects } = req.body;
+
+router.post("/register-subjects", requireAuth, requireRole("student"), wrapAsync(async (req, res) => {
+    // 1. Extract imageUrl from the incoming request body
+    const { enrolment_no, subjects, imageUrl } = req.body; 
 
     try {
         await pool.query("BEGIN");
 
-        // Fetch user_id using the enrolment_no because subjects_regd requires user_id
         const userRes = await pool.query("SELECT user_id FROM students WHERE enrolment_no = $1", [enrolment_no]);
         if (userRes.rows.length === 0) throw new ExpressError(404, "Student not found.");
         const userId = userRes.rows[0].user_id;
 
-        // Insert exactly per your schema: Only user_id and subject_code
+        // 2. Save the Cloudinary image URL using your EXACT column name
+        if (imageUrl) {
+            await pool.query(
+                "UPDATE students SET form_image_url = $1 WHERE user_id = $2",
+                [imageUrl, userId]
+            );
+        }
+
+        // 3. Insert the subjects
         for (let sub of subjects) {
             await pool.query(
                 `INSERT INTO subjects_regd (user_id, subject_code) 

@@ -7,6 +7,7 @@ const cors = require("cors");
 const port = process.env.PORT || 5000;
 const authRoutes = require("./routes/authRoutes");
 const modelRoutes=require("./routes/modelRoutes");
+const studentRoutes = require("./routes/studentRoutes");
 const pool = require("./config/db"); 
 const ExpressError = require("./utils/ExpressError");
 const wrapAsync = require("./utils/wrapAsync");
@@ -18,6 +19,7 @@ app.use(express.json());
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/model",modelRoutes);
+app.use("/api/student",studentRoutes);
 
 
 pool.query("SELECT NOW()", (err, res) => {

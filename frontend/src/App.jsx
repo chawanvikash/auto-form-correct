@@ -5,7 +5,7 @@ import RegisterPage from "./components/RegisterPage";
 import LoginPage from "./components/LoginPage";
 import ProtectedRoute from "./content/ProtectedRoute";
 import VerifyOTPPage from "./components/VerifyOTPPage";
-import Dashboard from "./components/Dashboard";
+import Dashboard from "./components/dashboard/Dashboard";
 import Typewriter from "./components/Typewriter";
 import ForgotPassword from './components/ForgotPassword';
 import VerificationResult from "./components/VerificationResult";

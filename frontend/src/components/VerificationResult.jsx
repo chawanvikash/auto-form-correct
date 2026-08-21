@@ -39,7 +39,7 @@ const ResultStyles = () => (
 const VerificationResult = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useContext(AuthContext);
+  const { user,token } = useContext(AuthContext);
 
   const { status, data, imageUrl } = location.state || {};
   const [isRegistering, setIsRegistering] = useState(false);
@@ -68,7 +68,7 @@ const VerificationResult = () => {
         enrolment_no: user.identifier,
         subjects: scannedSubjects,
         imageUrl
-      }, { headers: { 'Authorization': `Bearer ${user.token}` } });
+      }, { headers: { 'Authorization': `Bearer ${token}` } });
       
       setRegisterSuccess(true);
       setTimeout(() => navigate('/'), 3000);
@@ -110,7 +110,7 @@ const VerificationResult = () => {
           
           <div className="result-header">
             <div>
-              <Button variant="link" className="text-decoration-none p-0 mb-2 text-muted fw-bold d-flex align-items-center" onClick={() => navigate('/')}>
+              <Button variant="link" className="text-decoration-none p-0 mb-2 text-muted fw-bold d-flex align-items-center" onClick={() => navigate('/Dashboard')}>
                 <ArrowLeft size={16} className="me-1" /> Back to Workspace
               </Button>
               <h2 className="result-title">

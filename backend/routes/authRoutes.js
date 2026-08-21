@@ -9,7 +9,7 @@ const ExpressError = require("../utils/ExpressError");
 const crypto = require("crypto");
 
 router.post("/register", wrapAsync(async (req, res) => {
-    // Note: Accepting 'identifier' which handles both enrolment_no and employee_id
+    // Accepting 'identifier' which handles both enrolment_no and employee_id
     const { 
         email, password, identifier, enrolment_no, employee_id, full_name, 
         semester, programme, department, phone_no, role 
@@ -177,9 +177,23 @@ router.post("/login", wrapAsync(async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password_hash);
     if (!isMatch) throw new ExpressError(401, "Invalid Credentials");
 
-    const identifier = user.role === 'student' ? user.enrolment_no : user.employee_id;
-    const name = user.role === 'student' ? user.student_name : user.faculty_name;
-    const department = user.role === 'student' ? user.student_dept : user.faculty_dept;
+    // Explicitly handle all 3 possible roles to prevent undefined variables
+    let identifier, name, department;
+
+    if (user.role === 'student') {
+        identifier = user.enrolment_no;
+        name = user.student_name;
+        department = user.student_dept;
+    } else if (user.role === 'faculty') {
+        identifier = user.employee_id;
+        name = user.faculty_name;
+        department = user.faculty_dept;
+    } else if (user.role === 'admin') {
+        // Fallback profile data for Admins (since they aren't in students/faculty tables)
+        identifier = "ADMIN-" + user.user_id;
+        name = "System Administrator";
+        department = "Administration";
+    }
 
     const token = jwt.sign(
         { userId: user.user_id, role: user.role, identifier },

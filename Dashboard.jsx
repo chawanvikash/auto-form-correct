@@ -134,7 +134,7 @@ const PageStyles = () => (
 );
 
 const Dashboard = () => {
-  const { user, logout } = useContext(AuthContext);
+  const { user,token, logout } = useContext(AuthContext);
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
 
@@ -187,14 +187,14 @@ const Dashboard = () => {
       formData.append('registration_form', selectedFile);
 
       const uploadRes = await axios.post(`${url}/api/model/upload-image`, formData, {
-        headers: { 'Authorization': `Bearer ${user.token}`, 'Content-Type': 'multipart/form-data' }
+      headers: { 'Authorization': `Bearer ${token}` } // <-- Changed to ${token}
       });
       const imageUrl = uploadRes.data.imageUrl;
 
       // Step 2: OCR Extraction via Gemini AI
       setActiveStep(2);
       const extractRes = await axios.post(`${url}/api/model/extract-data`, { imageUrl }, {
-        headers: { 'Authorization': `Bearer ${user.token}` }
+      headers: { 'Authorization': `Bearer ${token}` } // <-- Changed to ${token}
       });
       const extractedData = extractRes.data.extractedData;
 
@@ -202,12 +202,12 @@ const Dashboard = () => {
       setActiveStep(3);
       try {
         const verifyRes = await axios.post(`${url}/api/model/verify-data`, {
-            enrolment_no: user.identifier,
-            extractedData,
-            imageUrl
-        }, {
-            headers: { 'Authorization': `Bearer ${user.token}` }
-        });
+        enrolment_no: user.identifier,
+        extractedData,
+        imageUrl
+      },      {
+        headers: { 'Authorization': `Bearer ${token}` } // <-- Changed to ${token}
+      });
 
         // Add a tiny artificial delay on the final step so the user sees the 3rd checkmark
         setTimeout(() => {
