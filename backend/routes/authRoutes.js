@@ -116,7 +116,7 @@ router.post("/verify-otp", wrapAsync(async (req, res) => {
                  VALUES ($1, $2, $3, $4, $5, $6, $7)`,
                 [pendingUser.identifier, newUserId, pendingUser.full_name, pendingUser.semester, pendingUser.programme, pendingUser.department, pendingUser.phone_no]
             );
-        } else if (pendingUser.role === 'faculty') {
+        } else if (pendingUser.role === 'faculty' || pendingUser.role === 'admin') {
             await pool.query(
                 `INSERT INTO faculty (employee_id, user_id, full_name, department, phone_no) 
                  VALUES ($1, $2, $3, $4, $5)`,
@@ -151,7 +151,6 @@ router.post("/verify-otp", wrapAsync(async (req, res) => {
             department: pendingUser.department,
             semester: pendingUser.semester || null,
             programme: pendingUser.programme || null
-
         }
     });
 }));
@@ -177,22 +176,17 @@ router.post("/login", wrapAsync(async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password_hash);
     if (!isMatch) throw new ExpressError(401, "Invalid Credentials");
 
-    // Explicitly handle all 3 possible roles to prevent undefined variables
+    // Explicitly handle all roles to prevent undefined variables
     let identifier, name, department;
 
     if (user.role === 'student') {
         identifier = user.enrolment_no;
         name = user.student_name;
         department = user.student_dept;
-    } else if (user.role === 'faculty') {
+    } else if (user.role === 'faculty' || user.role === 'admin') {
         identifier = user.employee_id;
         name = user.faculty_name;
         department = user.faculty_dept;
-    } else if (user.role === 'admin') {
-        // Fallback profile data for Admins (since they aren't in students/faculty tables)
-        identifier = "ADMIN-" + user.user_id;
-        name = "System Administrator";
-        department = "Administration";
     }
 
     const token = jwt.sign(
@@ -242,11 +236,9 @@ router.post("/forgot-password", async (req, res) => {
             [email, hashedOtp, tokenExpires]
         );
 
-        // FIX 1: Calling the correct Password Reset email template
+        // Calling the correct Password Reset email template
         await sendPasswordResetEmail(email, otp);
         
-        // FIX 2: Added Dev Mode log so you can see the OTP instantly
-        console.log(`\n🔄 [DEV MODE] PASSWORD RESET OTP for ${email} is: ${otp}\n`);
 
         res.json({ success: true, message: "OTP sent successfully." });
     } catch (error) {
@@ -287,7 +279,7 @@ router.post("/verify-reset-otp", async (req, res) => {
     }
 });
 
-// POST /api/auth/resend-otp
+
 router.post("/resend-otp", wrapAsync(async (req, res) => {
     const { email } = req.body;
 
@@ -311,8 +303,6 @@ router.post("/resend-otp", wrapAsync(async (req, res) => {
     // 4. Send the new email
     await sendVerificationEmail(email, newOtp);
     
-    // (Optional for Dev mode) Print it to the terminal so you don't have to wait for the email
-    console.log(`\n🔄 [DEV MODE] NEW RESENT OTP for ${email} is: ${newOtp}\n`);
 
     res.status(200).json({ 
         success: true, 

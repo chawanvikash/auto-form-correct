@@ -8,6 +8,9 @@ import { BASE_URL } from '../../helper';
 const Profile = () => {
   const { user, token, updateUser } = useContext(AuthContext);
   
+  // Helper to check role
+  const isStudent = user?.role === 'student';
+  
   // UI State
   const [isLoading, setIsLoading] = useState(true);
   const [profileData, setProfileData] = useState(null);
@@ -23,11 +26,13 @@ const Profile = () => {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const res = await axios.get(`${BASE_URL}/api/student/profile`, {
+        const res = await axios.get(`${BASE_URL}/api/user/profile`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setProfileData(res.data.profile);
-        setFormData({ semester: res.data.profile.semester });
+        if (isStudent) {
+          setFormData({ semester: res.data.profile.semester });
+        }
       } catch (err) {
         setError("Failed to load profile details.");
       } finally {
@@ -36,9 +41,9 @@ const Profile = () => {
     };
 
     if (token) fetchProfile();
-  }, [token]);
+  }, [token, isStudent]);
 
-  // 2. HANDLE SEMESTER UPDATE
+  // (Students Only)
   const handleSave = async () => {
     setIsSaving(true);
     setUpdateMessage(null);
@@ -49,10 +54,7 @@ const Profile = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
-      // Update local state so UI changes instantly
       setProfileData(prev => ({ ...prev, semester: formData.semester }));
-      
-      // Update global context so the Upload Form unlocks
       if (updateUser) updateUser({ semester: formData.semester });
       
       setUpdateMessage({ type: 'success', text: 'Semester updated successfully!' });
@@ -64,12 +66,10 @@ const Profile = () => {
     }
   };
 
-  // Loading Screen
   if (isLoading) {
     return <div className="p-5 text-center"><Spinner animation="border" style={{ color: 'var(--brand-blue)' }} /></div>;
   }
 
-  // Error Screen
   if (error) {
     return <div className="p-5 text-danger text-center fw-bold">{error}</div>;
   }
@@ -81,14 +81,17 @@ const Profile = () => {
           <User className="me-3" style={{ color: 'var(--brand-blue)' }} size={28} /> My Profile
         </h4>
         
-        {!isEditing ? (
-          <Button variant="outline-primary" className="rounded-pill d-flex align-items-center" onClick={() => setIsEditing(true)}>
-            <Edit2 size={16} className="me-2" /> Edit Profile
-          </Button>
-        ) : (
-          <Button variant="outline-danger" className="rounded-pill d-flex align-items-center" onClick={() => { setIsEditing(false); setFormData({ semester: profileData?.semester }); }}>
-            <X size={16} className="me-2" /> Cancel
-          </Button>
+        {/* ONLY show the Edit button if the user is a student */}
+        {isStudent && (
+          !isEditing ? (
+            <Button variant="outline-primary" className="rounded-pill d-flex align-items-center" onClick={() => setIsEditing(true)}>
+              <Edit2 size={16} className="me-2" /> Edit Profile
+            </Button>
+          ) : (
+            <Button variant="outline-danger" className="rounded-pill d-flex align-items-center" onClick={() => { setIsEditing(false); setFormData({ semester: profileData?.semester }); }}>
+              <X size={16} className="me-2" /> Cancel
+            </Button>
+          )
         )}
       </div>
 
@@ -109,16 +112,23 @@ const Profile = () => {
             <User size={50} style={{ color: 'var(--brand-blue)' }} />
           </div>
 
-          <h3 className="fw-bold text-dark mb-1">{profileData?.full_name || "Student Name"}</h3>
+          <h3 className="fw-bold text-dark mb-1">{profileData?.full_name || "Name"}</h3>
           <p className="text-muted fw-semibold mb-4">{profileData?.department || "Department"}</p>
 
           <Row className="g-3 g-md-4 mt-2">
+            
             <Col xs={12} md={6}>
               <div className="d-flex align-items-center p-3 bg-light rounded-3 border h-100">
                 <Hash style={{ color: 'var(--brand-blue)' }} className="me-3 flex-shrink-0" size={24} />
                 <div className="w-100">
-                  <div className="text-muted fw-bold" style={{ fontSize: '11px', textTransform: 'uppercase' }}>Enrolment No</div>
-                  <div className="fw-semibold text-dark text-break">{profileData?.enrolment_no || "N/A"}</div>
+                  {/* Dynamic Label based on Role */}
+                  <div className="text-muted fw-bold" style={{ fontSize: '11px', textTransform: 'uppercase' }}>
+                    {isStudent ? 'Enrolment No' : 'Employee ID'}
+                  </div>
+                  {/* Dynamic Data check */}
+                  <div className="fw-semibold text-dark text-break">
+                    {profileData?.enrolment_no || profileData?.employee_id || "N/A"}
+                  </div>
                 </div>
               </div>
             </Col>
@@ -133,44 +143,43 @@ const Profile = () => {
               </div>
             </Col>
 
-            <Col xs={12} md={6}>
-              <div className="d-flex align-items-center p-3 bg-light rounded-3 border h-100">
-                <GraduationCap style={{ color: 'var(--brand-blue)' }} className="me-3 flex-shrink-0" size={24} />
-                <div className="w-100">
-                  <div className="text-muted fw-bold" style={{ fontSize: '11px', textTransform: 'uppercase' }}>Program</div>
-                  <div className="fw-semibold text-dark">{profileData?.programme || "N/A"}</div>
+            {/* ONLY render Program if user is a student */}
+            {isStudent && (
+              <Col xs={12} md={6}>
+                <div className="d-flex align-items-center p-3 bg-light rounded-3 border h-100">
+                  <GraduationCap style={{ color: 'var(--brand-blue)' }} className="me-3 flex-shrink-0" size={24} />
+                  <div className="w-100">
+                    <div className="text-muted fw-bold" style={{ fontSize: '11px', textTransform: 'uppercase' }}>Program</div>
+                    <div className="fw-semibold text-dark">{profileData?.programme || "N/A"}</div>
+                  </div>
                 </div>
-              </div>
-            </Col>
+              </Col>
+            )}
 
-            <Col xs={12} md={6}>
-              <div className={`d-flex align-items-center p-3 bg-light rounded-3 border h-100 ${isEditing ? 'border-primary shadow-sm' : ''}`}>
-                <BookOpen style={{ color: 'var(--brand-blue)' }} className="me-3 flex-shrink-0" size={24} />
-                <div className="w-100">
-                  <div className="text-muted fw-bold" style={{ fontSize: '11px', textTransform: 'uppercase' }}>Semester</div>
-                  
-                  {isEditing ? (
-                    <Form.Select 
-                      size="sm" 
-                      className="mt-1 fw-bold" 
-                      value={formData.semester}
-                      onChange={(e) => setFormData({ semester: e.target.value })}
-                    >
-                      <option value="1">1</option>
-                      <option value="2">2</option>
-                      <option value="3">3</option>
-                      <option value="4">4</option>
-                      <option value="5">5</option>
-                      <option value="6">6</option>
-                      <option value="7">7</option>
-                      <option value="8">8</option>
-                    </Form.Select>
-                  ) : (
-                    <div className="fw-semibold text-dark">{profileData?.semester || "N/A"}</div>
-                  )}
+            {/* ONLY render Semester if user is a student */}
+            {isStudent && (
+              <Col xs={12} md={6}>
+                <div className={`d-flex align-items-center p-3 bg-light rounded-3 border h-100 ${isEditing ? 'border-primary shadow-sm' : ''}`}>
+                  <BookOpen style={{ color: 'var(--brand-blue)' }} className="me-3 flex-shrink-0" size={24} />
+                  <div className="w-100">
+                    <div className="text-muted fw-bold" style={{ fontSize: '11px', textTransform: 'uppercase' }}>Semester</div>
+                    
+                    {isEditing ? (
+                      <Form.Select 
+                        size="sm" 
+                        className="mt-1 fw-bold" 
+                        value={formData.semester}
+                        onChange={(e) => setFormData({ semester: e.target.value })}
+                      >
+                        {[1,2,3,4,5,6,7,8].map(num => <option key={num} value={num}>{num}</option>)}
+                      </Form.Select>
+                    ) : (
+                      <div className="fw-semibold text-dark">{profileData?.semester || "N/A"}</div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </Col>
+              </Col>
+            )}
 
             <Col xs={12} md={6}>
               <div className="d-flex align-items-center p-3 bg-light rounded-3 border h-100">
@@ -193,7 +202,7 @@ const Profile = () => {
             </Col>
           </Row>
 
-          {isEditing && (
+          {isEditing && isStudent && (
             <div className="mt-4 text-end animate-fade-up">
               <Button 
                 variant="primary" 

@@ -71,7 +71,7 @@ const VerificationResult = () => {
       }, { headers: { 'Authorization': `Bearer ${token}` } });
       
       setRegisterSuccess(true);
-      setTimeout(() => navigate('/'), 3000);
+      setTimeout(() => navigate('/dashboard'), 3000);
     } catch (error) {
       alert("Failed to register subjects. Please try again.");
     } finally {

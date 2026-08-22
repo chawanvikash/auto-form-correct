@@ -28,13 +28,14 @@ router.get("/my-subjects/:enrolment_no", requireAuth, requireRole("student"), wr
         subjects: result.rows
     });
 }));
-// PUT: Update Student Semester
+
+
 router.put("/update-semester", requireAuth, requireRole("student"), wrapAsync(async (req, res) => {
     const { semester } = req.body;
     
     if (!semester) throw new ExpressError(400, "Semester is required.");
 
-    // FIXED: Changed req.user.user_id to req.user.userId
+    // Changed req.user.user_id to req.user.userId
     const result = await pool.query(
         "UPDATE students SET semester = $1 WHERE user_id = $2 RETURNING *",
         [semester, req.user.userId] 
@@ -47,24 +48,6 @@ router.put("/update-semester", requireAuth, requireRole("student"), wrapAsync(as
     res.status(200).json({ success: true, message: "Semester updated successfully." });
 }));
 
-// GET: Fetch Complete Student Profile
-router.get("/profile", requireAuth, requireRole("student"), wrapAsync(async (req, res) => {
-    const query = `
-        SELECT s.full_name, s.enrolment_no, u.email, s.phone_no, s.department, s.programme, s.semester
-        FROM students s
-        JOIN users u ON s.user_id = u.user_id
-        WHERE s.user_id = $1 
-    `;
-    
-    // Remember to use req.user.userId based on our earlier fix!
-    const result = await pool.query(query, [req.user.userId]); 
-
-    if (result.rows.length === 0) {
-        throw new ExpressError(404, "Student profile not found.");
-    }
-
-    res.status(200).json({ success: true, profile: result.rows[0] });
-}));
 
 
 module.exports = router;

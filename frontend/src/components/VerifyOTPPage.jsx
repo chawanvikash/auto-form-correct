@@ -230,7 +230,7 @@ const VerifyOTPPage = () => {
     }
   };
 
-  // --- Timer logic (useEffect) ---
+  
   useEffect(() => {
     let timer;
     if (countdown > 0) {
@@ -270,7 +270,7 @@ const VerifyOTPPage = () => {
     }
   };
 
-  // --- Resend OTP Logic ---
+  
   const handleResendOTP = async () => {
     setIsResending(true);
     setError('');

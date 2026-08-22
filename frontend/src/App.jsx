@@ -20,10 +20,9 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/verify-otp" element={<VerifyOTPPage />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>}/>
-        <Route path="/result" element={<ProtectedRoute><VerificationResult /></ProtectedRoute>} />              
-        <Route path="*" element={<Navigate to="/" />} />
-      </Routes>
+        <Route path="/dashboard" element={<ProtectedRoute requiredRole={['student', 'admin', 'faculty']}><Dashboard /></ProtectedRoute>} />
+        <Route path="/result" element={<ProtectedRoute requiredRole="student"><VerificationResult /></ProtectedRoute>} />         
+        <Route path="*" element={<Navigate to="/" />} /></Routes>
     </AuthProvider>
   );
 }

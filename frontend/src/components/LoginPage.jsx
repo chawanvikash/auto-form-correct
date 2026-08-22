@@ -231,7 +231,10 @@ const LoginPage = () => {
     try {
       const res = await axios.post(url + '/api/auth/login', formData);
       login(res.data.token, res.data.user);
-      navigate('/');
+      
+      // Everyone goes to the smart dashboard!
+      navigate('/dashboard'); 
+      
     } catch (err) {
       setError(err.response?.data?.error || 'Login failed. Please check your credentials.');
     } finally {

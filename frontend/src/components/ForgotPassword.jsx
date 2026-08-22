@@ -204,11 +204,9 @@ const ForgotPassword = () => {
   const [step, setStep] = useState(1); 
   const [email, setEmail] = useState('');
   
-  // Array state for the 6 boxes
   const [otpValues, setOtpValues] = useState(new Array(6).fill(''));
   const inputRefs = useRef([]);
   
-  // Timer State
   const [countdown, setCountdown] = useState(0); 
 
   const [newPassword, setNewPassword] = useState('');
@@ -232,7 +230,7 @@ const ForgotPassword = () => {
       const res = await axios.post(`${BASE_URL}/api/auth/forgot-password`, { email });
       setMessage(res.data.message);
       setStep(2); 
-      setCountdown(60); // Initialize the timer when moving to Step 2
+      setCountdown(60); 
     } catch (err) {
       setError(err.response?.data?.error || "Failed to send OTP.");
     } finally {
@@ -240,7 +238,7 @@ const ForgotPassword = () => {
     }
   };
 
-  // --- OTP Box Handlers ---
+  
   const handleOtpChange = (element, index) => {
     if (isNaN(element.value)) return;
     const newOtpValues = [...otpValues];
@@ -277,7 +275,6 @@ const ForgotPassword = () => {
     }
   };
 
-  // --- Timer logic (useEffect) ---
   useEffect(() => {
     let timer;
     if (countdown > 0) {
@@ -285,11 +282,10 @@ const ForgotPassword = () => {
         setCountdown((prev) => prev - 1);
       }, 1000);
     }
-    // Cleanup the interval when the component unmounts or countdown reaches 0
+
     return () => clearInterval(timer);
   }, [countdown]);
 
-  // --- Submit OTP ---
   const handleOtpSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true); setError(null); setMessage(null);
@@ -315,7 +311,7 @@ const ForgotPassword = () => {
     }
   };
 
-  // --- Resend OTP Logic ---
+
   const handleResendOTP = async () => {
     setIsResending(true);
     setError(null);

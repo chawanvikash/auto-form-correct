@@ -292,7 +292,7 @@ const PageStyles = () => (
   `}</style>
 );
 
-/* ─── Step Indicator ── */
+
 const Steps = ({ current }) => {
   const items = ['Identity', 'Academic', 'Security'];
   return (

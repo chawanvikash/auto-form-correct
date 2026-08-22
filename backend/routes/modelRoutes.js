@@ -14,18 +14,13 @@ const { requireAuth, requireRole } = require("../utils/middleWare");
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-// Initialize the new AI client
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 
 
-
 // STEP 1: Upload to Cloudinary
-
 router.post("/upload-image", requireAuth, requireRole("student"), upload.single("registration_form"), async (req, res, next) => {
     try {
-        console.log("1. Route hit. Auth passed.");
-        console.log("2. req.file exists?", !!req.file);
 
         if (!req.file) {
             return res.status(400).json({ error: "No image file provided by Multer." });
@@ -34,7 +29,6 @@ router.post("/upload-image", requireAuth, requireRole("student"), upload.single(
         const b64 = Buffer.from(req.file.buffer).toString("base64");
         const dataURI = "data:" + req.file.mimetype + ";base64," + b64;
         
-        console.log("3. Attempting Cloudinary upload...");
         const cloudinaryResponse = await cloudinary.uploader.upload(dataURI, {
             folder: "semester_registrations",
         });
@@ -45,8 +39,7 @@ router.post("/upload-image", requireAuth, requireRole("student"), upload.single(
     } catch (error) {
         
         console.error(error);
-        
-        
+
         res.status(500).json({ 
             success: false, 
             message: "Upload crashed. Check backend terminal.",
@@ -56,8 +49,7 @@ router.post("/upload-image", requireAuth, requireRole("student"), upload.single(
 });
 
 
-// STEP 2: Extract Data via Gemini OCR (UPDATED FOR NEW SDK)
-
+// STEP 2: Extract Data via Gemini OCR (SDK)
 router.post("/extract-data", requireAuth, requireRole("student"), wrapAsync(async (req, res) => {
     const { imageUrl } = req.body;
     if (!imageUrl) throw new ExpressError(400, "Image URL is required.");
@@ -107,7 +99,6 @@ router.post("/extract-data", requireAuth, requireRole("student"), wrapAsync(asyn
         ]
     });
 
-    // The new SDK uses response.text directly
     const cleanJsonString = response.text.replace(/```json/g, "").replace(/```/g, "").trim();
     const extractedData = JSON.parse(cleanJsonString);
 
@@ -117,7 +108,6 @@ router.post("/extract-data", requireAuth, requireRole("student"), wrapAsync(asyn
 
 
 // STEP 3: Verify Data (Strict Normalized Matching)
-
 router.post("/verify-data", requireAuth, requireRole("student"), wrapAsync(async (req, res) => {
     const { enrolment_no, extractedData, imageUrl } = req.body;
 
@@ -186,7 +176,6 @@ router.post("/verify-data", requireAuth, requireRole("student"), wrapAsync(async
     }
 
     // Rule C: Check if every extracted subject matches the DB exactly
-    // Rule C: Check if every extracted subject matches the DB exactly
     (extractedData.subjects || []).forEach(scannedSub => {
         const dbSub = offeredSubjects.find(s => s.subject_code === scannedSub.subject_code);
         
@@ -205,7 +194,6 @@ router.post("/verify-data", requireAuth, requireRole("student"), wrapAsync(async
                 }
             }
 
-            // 3. UI FIX: Overwrite the scanned data with the true DB data
             // This ensures the frontend displays "Core"/"Elective" and "Theory"/"Practical" properly instead of N/A
             scannedSub.subject_category = dbSub.subject_category;
             scannedSub.subject_type = dbSub.subject_type;
@@ -238,9 +226,8 @@ router.post("/verify-data", requireAuth, requireRole("student"), wrapAsync(async
 
 
 // STEP 4: Final Registration
-
 router.post("/register-subjects", requireAuth, requireRole("student"), wrapAsync(async (req, res) => {
-    // 1. Extract imageUrl from the incoming request body
+
     const { enrolment_no, subjects, imageUrl } = req.body; 
 
     try {
@@ -250,7 +237,6 @@ router.post("/register-subjects", requireAuth, requireRole("student"), wrapAsync
         if (userRes.rows.length === 0) throw new ExpressError(404, "Student not found.");
         const userId = userRes.rows[0].user_id;
 
-        // 2. Save the Cloudinary image URL using your EXACT column name
         if (imageUrl) {
             await pool.query(
                 "UPDATE students SET form_image_url = $1 WHERE user_id = $2",
@@ -258,7 +244,7 @@ router.post("/register-subjects", requireAuth, requireRole("student"), wrapAsync
             );
         }
 
-        // 3. Insert the subjects
+        // Insert the subjects
         for (let sub of subjects) {
             await pool.query(
                 `INSERT INTO subjects_regd (user_id, subject_code) 
