@@ -18,7 +18,7 @@ const wrapAsync = require("./utils/wrapAsync");
 
 const allowedOrigins = [
     'http://localhost:5173', // Your local Vite React port (change if it's 3000)
-    'https://auto-form-correct.vercel.app/' // Replace with your actual Vercel URL
+    'https://auto-form-correct.vercel.app' // Replace with your actual Vercel URL
 ];
 
 app.use(cors({
