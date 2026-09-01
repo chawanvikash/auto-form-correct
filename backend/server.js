@@ -15,7 +15,25 @@ const ExpressError = require("./utils/ExpressError");
 const wrapAsync = require("./utils/wrapAsync");
 
 // Middleware
-app.use(cors());
+const cors = require('cors');
+const allowedOrigins = [
+    'http://localhost:5000', // Your local Vite React port (change if it's 3000)
+    'https://your-frontend-project.vercel.app' // Replace with your actual Vercel URL
+];
+
+app.use(cors({
+    origin: function (origin, callback) {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+        
+        if (allowedOrigins.indexOf(origin) === -1) {
+            var msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+            return callback(new Error(msg), false);
+        }
+        return callback(null, true);
+    },
+    credentials: true // Crucial if you are using JWT cookies/sessions
+}));
 app.use(express.json());
 
 // Routes
